@@ -48,6 +48,16 @@ const isHoliday = (date, holidays) => {
   return Boolean(holiday)
 }
 
+const getHolidayNames = (date, holidays) => {
+  const holiday = holidays.isHoliday(date)
+  if (!holiday) {
+    return []
+  }
+
+  const holidayList = Array.isArray(holiday) ? holiday : [holiday]
+  return holidayList.map((item) => item.name).filter(Boolean)
+}
+
 const getAdjustedSubmissionDate = (dueDateString, holidays) => {
   let adjusted = parseDateOnly(dueDateString)
   while (isWeekend(adjusted) || isHoliday(adjusted, holidays)) {
@@ -217,6 +227,24 @@ function App() {
     }
   }, [sendDueReminders])
 
+  useEffect(() => {
+    if (typeof Notification === 'undefined') {
+      return undefined
+    }
+
+    const syncNotificationPermission = () => {
+      setNotificationPermission(Notification.permission)
+    }
+
+    window.addEventListener('focus', syncNotificationPermission)
+    document.addEventListener('visibilitychange', syncNotificationPermission)
+
+    return () => {
+      window.removeEventListener('focus', syncNotificationPermission)
+      document.removeEventListener('visibilitychange', syncNotificationPermission)
+    }
+  }, [])
+
   const requestNotificationPermission = async () => {
     if (typeof Notification === 'undefined') {
       return
@@ -224,6 +252,12 @@ function App() {
 
     const permission = await Notification.requestPermission()
     setNotificationPermission(permission)
+
+    if (permission === 'granted') {
+      new Notification('Notifications enabled', {
+        body: 'You will get reminders from 5 days before due date.',
+      })
+    }
   }
 
   const onFieldChange = (event) => {
@@ -291,6 +325,14 @@ function App() {
     month: 'long',
     year: 'numeric',
   })
+  const notificationStatus =
+    notificationPermission === 'granted'
+      ? { label: 'Enabled', className: 'enabled' }
+      : notificationPermission === 'denied'
+        ? { label: 'Blocked by browser', className: 'denied' }
+        : notificationPermission === 'unsupported'
+          ? { label: 'Not supported in this browser', className: 'unsupported' }
+          : { label: 'Not enabled yet', className: 'pending' }
 
   return (
     <main className="app-shell">
@@ -299,18 +341,25 @@ function App() {
           <h1>ReminderWork</h1>
           <p className="subtitle">Task reminders with calendar + Malaysia KL holiday adjustment.</p>
         </div>
-        <button
-          type="button"
-          className="notify-btn"
-          disabled={notificationPermission === 'granted' || notificationPermission === 'unsupported'}
-          onClick={requestNotificationPermission}
-        >
-          {notificationPermission === 'granted'
-            ? 'Notifications enabled'
-            : notificationPermission === 'unsupported'
-              ? 'Notifications not supported'
-              : 'Enable notifications'}
-        </button>
+        <div className="notify-controls">
+          <button
+            type="button"
+            className="notify-btn"
+            disabled={notificationPermission === 'granted' || notificationPermission === 'unsupported'}
+            onClick={requestNotificationPermission}
+          >
+            {notificationPermission === 'granted'
+              ? 'Notifications enabled'
+              : notificationPermission === 'unsupported'
+                ? 'Notifications not supported'
+                : notificationPermission === 'denied'
+                  ? 'Notifications blocked'
+                  : 'Enable notifications'}
+          </button>
+          <p className={`notify-status ${notificationStatus.className}`}>
+            Notification status: <strong>{notificationStatus.label}</strong>
+          </p>
+        </div>
       </header>
 
       <section className="content-grid">
@@ -410,11 +459,23 @@ function App() {
               const iso = toDateInput(cell)
               const dayTasks = tasksByDate.get(iso) ?? []
               const isToday = iso === todayIso
+              const weekendCell = isWeekend(cell)
+              const holidayNames = getHolidayNames(cell, holidays)
+              const holidayCell = holidayNames.length > 0
 
               return (
-                <div key={iso} className={`calendar-cell ${isToday ? 'today' : ''}`}>
+                <div
+                  key={iso}
+                  className={`calendar-cell ${isToday ? 'today' : ''} ${weekendCell ? 'weekend' : ''} ${holidayCell ? 'holiday' : ''}`}
+                >
                   <span className="date-number">{cell.getDate()}</span>
                   <div className="cell-tasks">
+                    {holidayNames.length > 0 ? (
+                      <span className="holiday-chip" title={holidayNames.join(', ')}>
+                        🎉 {holidayNames[0]}
+                        {holidayNames.length > 1 ? ` +${holidayNames.length - 1}` : ''}
+                      </span>
+                    ) : null}
                     {dayTasks.slice(0, 3).map((task) => (
                       <span key={task.id} className={`task-chip ${task.completed ? 'done' : ''}`}>
                         {task.title}

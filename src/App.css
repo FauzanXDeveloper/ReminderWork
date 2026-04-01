@@ -104,6 +104,34 @@ select:focus {
   cursor: not-allowed;
 }
 
+.notify-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.notify-status {
+  margin: 0;
+  font-size: 12px;
+}
+
+.notify-status.enabled {
+  color: #166534;
+}
+
+.notify-status.pending {
+  color: #334155;
+}
+
+.notify-status.denied {
+  color: #991b1b;
+}
+
+.notify-status.unsupported {
+  color: #7c2d12;
+}
+
 .calendar-header {
   display: flex;
   justify-content: space-between;
@@ -145,7 +173,14 @@ select:focus {
 
 .calendar-cell.today {
   border-color: #60a5fa;
-  background: #eff6ff;
+}
+
+.calendar-cell.weekend {
+  background: #f1f5f9;
+}
+
+.calendar-cell.holiday {
+  border-color: #fda4af;
 }
 
 .date-number {
@@ -179,6 +214,17 @@ select:focus {
 .task-chip.more {
   background: #f1f5f9;
   color: #475569;
+}
+
+.holiday-chip {
+  background: #fee2e2;
+  color: #9f1239;
+  border-radius: 8px;
+  padding: 2px 6px;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .empty-state {
@@ -245,6 +291,10 @@ select:focus {
 
   .topbar {
     flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .notify-controls {
     align-items: flex-start;
   }
 }
