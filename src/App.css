@@ -1,20 +1,64 @@
 .app-shell {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 24px 16px 40px;
+  padding: 24px 16px 44px;
+  color: #0f172a;
 }
 
 .topbar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 16px;
 }
 
+.topbar h1 {
+  margin: 0;
+  font-size: 32px;
+  letter-spacing: -0.02em;
+}
+
 .subtitle {
   margin: 4px 0 0;
   color: #526177;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.summary-card {
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  padding: 12px 14px;
+  box-shadow: 0 10px 22px rgba(30, 64, 175, 0.08);
+}
+
+.summary-card p {
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
+}
+
+.summary-card strong {
+  margin-top: 2px;
+  display: inline-block;
+  font-size: 26px;
+}
+
+.summary-card.warning {
+  border-color: #fecaca;
+  background: linear-gradient(180deg, #fff7ed, #fff1f2);
+}
+
+.summary-card.holiday {
+  border-color: #fbcfe8;
+  background: linear-gradient(180deg, #fdf2f8, #fff1f2);
 }
 
 .content-grid {
@@ -26,10 +70,10 @@
 
 .panel {
   background: #ffffff;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #dbeafe;
   border-radius: 14px;
   padding: 16px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.08);
 }
 
 .task-form {
@@ -74,7 +118,8 @@ select:focus {
 .primary-btn,
 .secondary-btn,
 .notify-btn,
-.ghost-btn {
+.ghost-btn,
+.danger-btn {
   border: none;
   border-radius: 10px;
   padding: 10px 12px;
@@ -132,6 +177,40 @@ select:focus {
   color: #7c2d12;
 }
 
+.calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 10px;
+  color: #475569;
+  font-size: 12px;
+}
+
+.calendar-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.legend-dot.weekend {
+  background: #cbd5e1;
+}
+
+.legend-dot.holiday {
+  background: #fda4af;
+}
+
+.legend-dot.task {
+  background: #93c5fd;
+}
+
 .calendar-header {
   display: flex;
   justify-content: space-between;
@@ -165,6 +244,14 @@ select:focus {
   min-height: 96px;
   padding: 6px;
   background: #fff;
+  position: relative;
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+
+.calendar-cell:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+  z-index: 2;
 }
 
 .calendar-cell.empty {
@@ -183,9 +270,37 @@ select:focus {
   border-color: #fda4af;
 }
 
+.date-tooltip {
+  position: absolute;
+  left: 8px;
+  top: calc(100% + 6px);
+  width: min(230px, calc(100vw - 40px));
+  background: #0f172a;
+  color: #f8fafc;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 11px;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.date-tooltip p {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.calendar-cell:hover .date-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .date-number {
   font-size: 12px;
   color: #334155;
+  font-weight: 700;
 }
 
 .cell-tasks {
@@ -236,6 +351,31 @@ select:focus {
   gap: 10px;
 }
 
+.task-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.task-toolbar h2 {
+  margin: 0;
+}
+
+.task-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.task-toolbar-actions input,
+.task-toolbar-actions select {
+  width: auto;
+  min-width: 140px;
+}
+
 .task-card {
   border: 1px solid #dbeafe;
   border-radius: 12px;
@@ -250,7 +390,8 @@ select:focus {
 
 .task-meta-row {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
+  flex-wrap: wrap;
   align-items: center;
   margin-bottom: 6px;
   gap: 8px;
@@ -270,6 +411,28 @@ select:focus {
   font-size: 12px;
 }
 
+.priority-badge {
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.priority-badge.low {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.priority-badge.medium {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.priority-badge.high {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .task-card h3 {
   margin: 0 0 8px;
   color: #0f172a;
@@ -284,7 +447,21 @@ select:focus {
   color: #475569;
 }
 
+.danger-btn {
+  margin-left: 8px;
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.danger-btn:hover {
+  background: #fecaca;
+}
+
 @media (max-width: 900px) {
+  .summary-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .content-grid {
     grid-template-columns: 1fr;
   }
@@ -296,5 +473,19 @@ select:focus {
 
   .notify-controls {
     align-items: flex-start;
+  }
+
+  .task-toolbar {
+    flex-direction: column;
+  }
+
+  .task-toolbar-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 560px) {
+  .summary-grid {
+    grid-template-columns: 1fr;
   }
 }

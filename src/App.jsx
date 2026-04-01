@@ -3,6 +3,7 @@ import './App.css'
 
 const STORAGE_KEY = 'reminderwork.tasks.v1'
 const CATEGORY_OPTIONS = ['Job Scope', 'Ad Hoc']
+const PRIORITY_OPTIONS = ['Low', 'Medium', 'High']
 
 const todayAtMidnight = () => {
   const now = new Date()
@@ -46,6 +47,11 @@ const isWeekend = (date) => {
 const isHoliday = (date, holidays) => {
   const holiday = holidays.isHoliday(date)
   return Boolean(holiday)
+}
+
+const isInViewMonth = (dateString, viewMonth) => {
+  const date = parseDateOnly(dateString)
+  return date.getMonth() === viewMonth.getMonth() && date.getFullYear() === viewMonth.getFullYear()
 }
 
 const getHolidayNames = (date, holidays) => {
@@ -172,8 +178,12 @@ function App() {
     title: '',
     description: '',
     category: CATEGORY_OPTIONS[0],
+    priority: PRIORITY_OPTIONS[1],
     dueDate: toDateInput(todayAtMidnight()),
   }))
+  const [searchQuery, setSearchQuery] = useState('')
+  const [taskFilter, setTaskFilter] = useState('all')
+  const [showAllMonths, setShowAllMonths] = useState(false)
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks))
@@ -277,6 +287,7 @@ function App() {
       title,
       description: formData.description.trim(),
       category: formData.category,
+      priority: formData.priority,
       dueDate: formData.dueDate,
       completed: false,
       createdAt: new Date().toISOString(),
@@ -289,6 +300,10 @@ function App() {
       title: '',
       description: '',
     }))
+  }
+
+  const deleteTask = (taskId) => {
+    setTasks((currentTasks) => currentTasks.filter((task) => task.id !== taskId))
   }
 
   const toggleCompleted = (taskId) => {
@@ -304,10 +319,45 @@ function App() {
     )
   }
 
-  const sortedTasks = useMemo(
-    () => [...tasks].sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
-    [tasks],
+  const monthTasks = useMemo(
+    () => tasks.filter((task) => isInViewMonth(task.dueDate, viewMonth)),
+    [tasks, viewMonth],
   )
+
+  const filteredTasks = useMemo(() => {
+    const today = todayAtMidnight()
+    const baseTasks = showAllMonths ? tasks : monthTasks
+    const normalizedSearch = searchQuery.trim().toLowerCase()
+
+    return baseTasks
+      .filter((task) => {
+        if (!normalizedSearch) {
+          return true
+        }
+
+        return (
+          task.title.toLowerCase().includes(normalizedSearch) ||
+          task.description.toLowerCase().includes(normalizedSearch)
+        )
+      })
+      .filter((task) => {
+        const reminder = getReminderStatus(task, today)
+        if (taskFilter === 'pending') {
+          return !task.completed
+        }
+        if (taskFilter === 'completed') {
+          return task.completed
+        }
+        if (taskFilter === 'dueSoon') {
+          return !task.completed && reminder.text.startsWith('Due in')
+        }
+        if (taskFilter === 'overdue') {
+          return !task.completed && reminder.text.startsWith('Overdue')
+        }
+        return true
+      })
+      .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+  }, [tasks, monthTasks, showAllMonths, searchQuery, taskFilter])
 
   const tasksByDate = useMemo(() => {
     const mapped = new Map()
@@ -325,6 +375,23 @@ function App() {
     month: 'long',
     year: 'numeric',
   })
+  const today = todayAtMidnight()
+  const monthHolidayCount = useMemo(() => {
+    let count = 0
+    calendarCells.forEach((cell) => {
+      if (cell && getHolidayNames(cell, holidays).length > 0) {
+        count += 1
+      }
+    })
+    return count
+  }, [calendarCells, holidays])
+
+  const monthOpenTasks = monthTasks.filter((task) => !task.completed).length
+  const monthOverdueTasks = monthTasks.filter((task) => {
+    const status = getReminderStatus(task, today)
+    return !task.completed && status.text.startsWith('Overdue')
+  }).length
+
   const notificationStatus =
     notificationPermission === 'granted'
       ? { label: 'Enabled', className: 'enabled' }
@@ -338,8 +405,8 @@ function App() {
     <main className="app-shell">
       <header className="topbar">
         <div>
-          <h1>ReminderWork</h1>
-          <p className="subtitle">Task reminders with calendar + Malaysia KL holiday adjustment.</p>
+          <h1>Reminder for Work</h1>
+          <p className="subtitle">Plan scope work, ad hoc tasks, and KL holiday-safe submission dates.</p>
         </div>
         <div className="notify-controls">
           <button
@@ -361,6 +428,25 @@ function App() {
           </p>
         </div>
       </header>
+
+      <section className="summary-grid">
+        <article className="summary-card">
+          <p>Tasks in {monthLabel}</p>
+          <strong>{monthTasks.length}</strong>
+        </article>
+        <article className="summary-card">
+          <p>Open tasks</p>
+          <strong>{monthOpenTasks}</strong>
+        </article>
+        <article className="summary-card warning">
+          <p>Overdue</p>
+          <strong>{monthOverdueTasks}</strong>
+        </article>
+        <article className="summary-card holiday">
+          <p>KL holidays this month</p>
+          <strong>{monthHolidayCount}</strong>
+        </article>
+      </section>
 
       <section className="content-grid">
         <article className="panel">
@@ -394,6 +480,17 @@ function App() {
                 {CATEGORY_OPTIONS.map((category) => (
                   <option key={category} value={category}>
                     {category}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Priority
+              <select name="priority" value={formData.priority} onChange={onFieldChange}>
+                {PRIORITY_OPTIONS.map((priority) => (
+                  <option key={priority} value={priority}>
+                    {priority}
                   </option>
                 ))}
               </select>
@@ -445,6 +542,12 @@ function App() {
             </div>
           </div>
 
+          <div className="calendar-legend">
+            <span><em className="legend-dot weekend" />Weekend</span>
+            <span><em className="legend-dot holiday" />Holiday</span>
+            <span><em className="legend-dot task" />Task</span>
+          </div>
+
           <div className="weekdays">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
               <strong key={day}>{day}</strong>
@@ -462,11 +565,16 @@ function App() {
               const weekendCell = isWeekend(cell)
               const holidayNames = getHolidayNames(cell, holidays)
               const holidayCell = holidayNames.length > 0
+              const hoverLines = [
+                ...holidayNames.map((holidayName) => `Holiday: ${holidayName}`),
+                ...dayTasks.map((task) => `Task: ${task.title}`),
+              ]
 
               return (
                 <div
                   key={iso}
                   className={`calendar-cell ${isToday ? 'today' : ''} ${weekendCell ? 'weekend' : ''} ${holidayCell ? 'holiday' : ''}`}
+                  title={hoverLines.length > 0 ? hoverLines.join('\n') : 'No task or holiday'}
                 >
                   <span className="date-number">{cell.getDate()}</span>
                   <div className="cell-tasks">
@@ -485,6 +593,13 @@ function App() {
                       <span className="task-chip more">+{dayTasks.length - 3} more</span>
                     ) : null}
                   </div>
+                  {hoverLines.length > 0 ? (
+                    <div className="date-tooltip">
+                      {hoverLines.map((line) => (
+                        <p key={line}>{line}</p>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               )
             })}
@@ -493,18 +608,43 @@ function App() {
       </section>
 
       <section className="panel">
-        <h2>Tasks</h2>
-        {sortedTasks.length === 0 ? <p className="empty-state">No tasks yet.</p> : null}
+        <div className="task-toolbar">
+          <h2>{showAllMonths ? 'All Tasks' : `Tasks for ${monthLabel}`}</h2>
+          <div className="task-toolbar-actions">
+            <input
+              placeholder="Search task"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+            <select value={taskFilter} onChange={(event) => setTaskFilter(event.target.value)}>
+              <option value="all">All</option>
+              <option value="pending">Pending</option>
+              <option value="dueSoon">Due soon</option>
+              <option value="overdue">Overdue</option>
+              <option value="completed">Completed</option>
+            </select>
+            <button
+              type="button"
+              className="ghost-btn"
+              onClick={() => setShowAllMonths((current) => !current)}
+            >
+              {showAllMonths ? 'View selected month only' : 'View all months'}
+            </button>
+          </div>
+        </div>
+        {filteredTasks.length === 0 ? <p className="empty-state">No tasks for this view.</p> : null}
         <div className="task-list">
-          {sortedTasks.map((task) => {
+          {filteredTasks.map((task) => {
             const adjustedDate = getAdjustedSubmissionDate(task.dueDate, holidays)
-            const reminder = getReminderStatus(task, todayAtMidnight())
+            const reminder = getReminderStatus(task, today)
             const adjustedIso = toDateInput(adjustedDate)
+            const priority = task.priority ?? 'Medium'
 
             return (
               <article key={task.id} className={`task-card ${task.completed ? 'completed' : ''}`}>
                 <div className="task-meta-row">
                   <span className="badge">{task.category}</span>
+                  <span className={`priority-badge ${priority.toLowerCase()}`}>{priority}</span>
                   <span className="reminder-text">{reminder.text}</span>
                 </div>
                 <h3>{task.title}</h3>
@@ -522,6 +662,9 @@ function App() {
                   onClick={() => toggleCompleted(task.id)}
                 >
                   {task.completed ? 'Mark as pending' : 'Mark as completed'}
+                </button>
+                <button type="button" className="danger-btn" onClick={() => deleteTask(task.id)}>
+                  Delete task
                 </button>
               </article>
             )
